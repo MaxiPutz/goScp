@@ -1,6 +1,7 @@
 package sshclient
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -14,7 +15,7 @@ type ClientExecute struct {
 	Command  string
 }
 
-func Execute(exeInfo ClientExecute) {
+func Execute(exeInfo ClientExecute) (string, error) {
 	conf := &ssh.ClientConfig{
 		User: exeInfo.User,
 		Auth: []ssh.AuthMethod{
@@ -26,23 +27,27 @@ func Execute(exeInfo ClientExecute) {
 	client, err := ssh.Dial("tcp", exeInfo.IP+":22", conf)
 	if err != nil {
 		fmt.Print("Failed to dial SSH server: %s", err)
-		return
+		return "", err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
 		fmt.Println("not possible to connect")
-		return
+		return "", err
 	}
 
-	session.Stdout = os.Stdout
-	session.Stdin = os.Stdin
+	var stdoutBuf bytes.Buffer
 
+	session.Stdout = &stdoutBuf
+
+	session.Stdin = os.Stdin
 	err = session.Run(exeInfo.Command)
 
 	if err != nil {
 		fmt.Println("command not run")
-		return
+		return "", err
 	}
+
+	return stdoutBuf.String(), nil
 }
